@@ -10,6 +10,8 @@ An `iovisor/bcc` - based demo script which traces (server-side) nfsd opens, etc
 
 ## Quick Glance
 
+Which NFS clients are opening our files?
+
 ```
 $ sudo ./nfsd_open_trace.py --getattr -N 4
 
