@@ -156,7 +156,7 @@ def ts_to_str( ts ):
     main = strftime('%F %T.')
     tail = '%.4f' % ( modf(ts)[0] )
 
-    result = main + tail
+    result = main + tail[1:]
     return result
 
 
