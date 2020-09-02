@@ -45,7 +45,7 @@ TIME(s)                     COMM   PID    FUNC         MESSAGE
 ### notes
 
 Sadly, it does not list the full path to the file; instead, due to `BCC/eBPF` stack limitations, it prints up to 4 containing directories (see the `-N` option);
-so instead of giving the full path, it sort of prints its tail directories ending with the filename instead. Still, it is way better than nothing, and when paired with `tshark` (see below), it can really fill the missing bits of the whole picture )
+so instead of giving the full path, it sort of prints its tail directories ending with the filename. Still, it is way better than nothing, and when paired with `tshark` (see below), it can really fill the missing bits of the whole picture )
 
 ### a word on tshark
 
