@@ -1,11 +1,18 @@
 # bcc-nfsd-trace
-iovisor/bcc - based demo tracing (server-side) nfsd opens, etc
+An `iovisor/bcc` - based demo script which traces (server-side) nfsd opens, etc
 
-## Overview
+* [Quick Glance](#quick-glance)
+  - [a word on tshark](#a-word-on-tshark)
+* [Installation](#installation)
+  - [Install `iovisor-bcc`](#install-iovisor-bcc)
+  - [Install Kernel Sources](#install-kernel-sources)
+* [Run the Tracer](#run-the-tracer)
 
- * `sudo ./nfsd_open_trace.py --getattr -N 4` :
+## Quick Glance
 
 ```
+$ sudo ./nfsd_open_trace.py --getattr -N 4
+
 TIME(s)                     COMM   PID    FUNC         MESSAGE
 2020-09-02 20:58:08.0.5001  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
 2020-09-02 20:58:08.0.5035  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
@@ -34,6 +41,8 @@ TIME(s)                     COMM   PID    FUNC         MESSAGE
 2020-09-02 20:58:15.0.1261  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
 2020-09-02 20:58:15.0.1264  nfsd   7549   vfs_open     192.168.1.31:801 testdir
 ```
+
+### a word on tshark
 
 When paired with `tshark`, 
 
@@ -73,7 +82,7 @@ Below we shall have brief install instructions, and there also shall be a [HOWTO
 
 ### Install `iovisor-bcc`
 
-Do as [instructed](https://github.com/iovisor/bcc/blob/master/INSTALL.md#ubuntu---source) ; in particular, I shall note that 18.04 instructions suit to 16.04 as well:
+Do [as instructed](https://github.com/iovisor/bcc/blob/master/INSTALL.md#ubuntu---source) ; in particular, I shall note that 18.04 instructions suit to 16.04 as well:
 
 ```Shell
 sudo apt-get -y install bison build-essential cmake flex git libedit-dev \
@@ -114,7 +123,7 @@ cd ..
 sudo ln -s linux-$(uname -r) /usr/src/linux-$(uname -r)
 ```
 
-### Run the Tracer
+## Run the Tracer
 
 ```
 Usage: nfsd_open_trace.py [options]
