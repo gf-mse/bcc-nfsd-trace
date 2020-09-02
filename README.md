@@ -16,32 +16,32 @@ Which NFS clients are opening our files?
 $ sudo ./nfsd_open_trace.py --getattr -N 4
 
 TIME(s)                     COMM   PID    FUNC         MESSAGE
-2020-09-02 20:58:08.0.5001  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:08.0.5035  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:08.0.5039  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:08.0.5041  nfsd   7549   vfs_open     192.168.1.31:801 testdir
-2020-09-02 20:58:08.0.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:08.0.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 /
-2020-09-02 20:58:08.0.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:08.0.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:09.0.9231  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:09.0.9235  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:09.0.9466  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:09.0.9470  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:11.0.5393  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:11.0.5400  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:11.0.5400  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/.#testfile
-2020-09-02 20:58:14.0.6453  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:14.0.6460  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:14.0.6466  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:14.0.6469  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:14.0.6471  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:14.0.6475  nfsd   7549   vfs_open     192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:14.0.6476  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
-2020-09-02 20:58:14.0.6479  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/.#testfile
-2020-09-02 20:58:14.0.6484  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:15.0.1261  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
-2020-09-02 20:58:15.0.1264  nfsd   7549   vfs_open     192.168.1.31:801 testdir
+2020-09-02 20:58:08.5001  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:08.5035  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:08.5039  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:08.5041  nfsd   7549   vfs_open     192.168.1.31:801 testdir
+2020-09-02 20:58:08.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:08.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 /
+2020-09-02 20:58:08.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:08.5042  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:09.9231  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:09.9235  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:09.9466  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:09.9470  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:11.5393  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:11.5400  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:11.5400  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/.#testfile
+2020-09-02 20:58:14.6453  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:14.6460  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:14.6466  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:14.6469  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:14.6471  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:14.6475  nfsd   7549   vfs_open     192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:14.6476  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/testfile
+2020-09-02 20:58:14.6479  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir/.#testfile
+2020-09-02 20:58:14.6484  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:15.1261  nfsd   7549   vfs_getattr  192.168.1.31:801 testdir
+2020-09-02 20:58:15.1264  nfsd   7549   vfs_open     192.168.1.31:801 testdir
 ```
 
 ### notes
