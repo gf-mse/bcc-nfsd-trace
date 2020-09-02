@@ -323,12 +323,22 @@ def print_event_default(cpu, data, size):
 # ======================================================================================
 
 b = BPF(text=bpf_code)
-b.attach_kprobe(event="nfsd_open", fn_name="probe_nfsd_open")
-
-if options.trace_getattr:
+# nfsd_open()'s 1st arg seems to be a dentry for the (containing) _directory_
+if 0:
+    b.attach_kprobe(event="nfsd_open", fn_name="probe_nfsd_open")
+# new way
+if 1:
     # order could be important ?
     b.attach_kretprobe(event="nfsd_dispatch", fn_name="probe_nfsd_dispatch_exit")
     b.attach_kprobe(event="nfsd_dispatch", fn_name="probe_nfsd_dispatch_enter")
+    b.attach_kprobe(event="vfs_open", fn_name="probe_vfs_open")
+
+##  if options.trace_getattr:
+##      b.attach_kprobe(event="vfs_getattr", fn_name="probe_vfs_getattr")
+if options.trace_getattr:
+    ## # order could be important ?
+    ## b.attach_kretprobe(event="nfsd_dispatch", fn_name="probe_nfsd_dispatch_exit")
+    ## b.attach_kprobe(event="nfsd_dispatch", fn_name="probe_nfsd_dispatch_enter")
     b.attach_kprobe(event="vfs_getattr", fn_name="probe_vfs_getattr")
 
 

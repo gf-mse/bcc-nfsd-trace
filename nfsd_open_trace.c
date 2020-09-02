@@ -125,6 +125,65 @@ int probe_nfsd_open( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh 
 }
 
 // -------------------------------------------------------------------------------
+/* vfs_open() -- based version */
+
+int probe_vfs_open(struct pt_regs *ctx, const struct path *pP, struct file * pF)
+{
+        u64 __pid_tgid = bpf_get_current_pid_tgid();
+        u32 __tgid = __pid_tgid >> 32;
+        u32 __pid = __pid_tgid; // implicit cast to u32 for bottom half
+
+        /* tgid_check */
+
+        void *__tmp = 0;
+        // if (__tgid == 23356) { return 0; }
+
+        struct probe_nfsd_open_data_t __data = {0};
+        __data.opcode = OPCODE_NFSD_OPEN;
+        __data.tgid = __tgid;
+        __data.pid = __pid;
+
+        __data.timestamp_ns = bpf_ktime_get_ns();
+        
+        bpf_get_current_comm(&__data.comm, sizeof(__data.comm));
+        /* comm filter // disabled */
+
+        struct svc_rqst** rqstpp = hash_getattr.lookup(&__pid_tgid);
+	if (rqstpp != 0) {
+            struct svc_rqst* rqstp = *rqstpp;
+            // one more check
+            if (rqstp == 0) return 0;
+            
+            // else ..
+            
+            // __entry->ipv4addr = rqstp->rq_addr.ss_family == AF_INET ? ((struct sockaddr_in *)&rqstp->rq_addr)->sin_addr.s_addr : 0;
+            __data.sin_family = rqstp->rq_addr.ss_family ;
+            if ( rqstp->rq_addr.ss_family == AF_INET ) {
+                struct sockaddr_in *pS = (struct sockaddr_in *) &rqstp->rq_addr ;
+
+                __data.sin_port = pS->sin_port ;
+                // __data.sin_addr.s_addr = pS->sin_addr.s_addr ;
+                __data.s_addr = pS->sin_addr.s_addr ;
+            } else {
+                __data.sin_port = 0 ;
+                // __data.sin_addr.s_addr = 0 ;
+                __data.s_addr = 0 ;
+            }
+        } else {
+            // unknown/unexpected, skip it
+            return 0;
+        }
+        
+
+        struct dentry* pD = pP->dentry; 
+        load_dentries(pD, &__data);
+
+        probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+
+        return 0;
+}
+
+// -------------------------------------------------------------------------------
 
 // https://github.com/torvalds/linux/blob/bcf876870b95592b52519ed4aafcf9d95999bc9c/fs/nfsd/nfssvc.c#L1004
 int probe_nfsd_dispatch_enter( struct pt_regs *ctx, struct svc_rqst *rqstp, __be32 *statp )
