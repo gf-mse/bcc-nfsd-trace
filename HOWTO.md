@@ -12,6 +12,7 @@ Notes on making the script
 
 Suppose we are debugging some complex NFS access issues on a server.  
 ( One of my use cases was an OpenVMS client trying to convert between local non-Unix file attributes and remote system. )  
+
 How do we trace what files a remote client is trying to open?  
 
 First answer to that is to try `rpcdebug` -- e.g. `rpcdebug -m nfsd -s fh proc`, but looking at the sources 
