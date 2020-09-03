@@ -5,8 +5,8 @@ Notes on making the script
 * [The Goal](#the-goal)
 * [Enters BCC](#enters-bcc)
 * [the open() syscall](#the-open-syscall)
-* [Tracing vfs_open](#tracing-vfs_open)
-* [Tracing nfsd_dispatch](#tracing-nfsd_dispatch)
+* [Tracing vfs_open()](#tracing-vfs_open)
+* [Tracing nfsd_dispatch()](#tracing-nfsd_dispatch)
 
 ## The Goal
 
