@@ -41,7 +41,7 @@ mostly because it has little-to-nothing to do with Packets and has a very distan
 
 _( Now follows my interpretation, and I wouldn't swear that it is correct. Beware! )_
 
-In short, modern BPF is an in-kernel interpreter, a VM -- like the one we have in Python, that allows to _safely_ call _and intercept_ kernel functions.  
+In short, modern BPF is an in-kernel interpreter, a VM -- like the one we have in Python -- that allows to _safely_ call _and intercept_ kernel functions.  
 BCC provides a language to that VM -- a subset of C, where one, in theory, can not use loop statments (so e.g. `strstr()` and `strcmp()` are out of the question ), 
 has limited access to `printk()` format expressions, and so on.
 
