@@ -89,11 +89,19 @@ Sadly, we soon learn that `nfsd` process does not go through the `open()` syscal
 
 ```Shell
 
+#
+# here we are trying to use tplist to fetch do_sys_open() arguments ..
+#
+
 # ./tplist.py -v fs:do_sys_open
 fs:do_sys_open
     __data_loc char[] filename;
     int flags;
     int mode;
+
+#
+# and it kinda fails us -- the last column below is empty
+#
 
 # ./trace.py 'do_sys_open "%s", arg1'
 PID     TID     COMM            FUNC             -
@@ -103,11 +111,15 @@ PID     TID     COMM            FUNC             -
 6857    7068    Cache2 I/O      do_sys_open      
 6857    7068    Cache2 I/O      do_sys_open      
 
-## .. well, may be tplist ain't so accurate after all
-## ( or may be we shall add 1 for `struct pt_regs *ctx` -- see the tutorial ; 
-##   but no one seems to make this note )
+#
+# .. well, may be tplist ain't so accurate after all
+# ( or may be we shall add 1 for `struct pt_regs *ctx` -- see the tutorial ; 
+#   but no one seems to make this note )
+#
 
-## anyway, livegrep and LXR (see below) are your friends, so :
+#
+# anyway, livegrep and LXR (see below) are your friends, so :
+#
 
 ## use a predefined filename, and create one locally and from an NFS client
 # ./trace.py -f 'deleteme' 'do_sys_open "%s", arg2@user'
@@ -117,6 +129,10 @@ PID     TID     COMM            FUNC             -
 # ./trace.py -f 'deleteme' 't:syscalls:sys_enter_openat "%s", args->filename' 
 PID     TID     COMM            FUNC             -
 2337    2337    touch           sys_enter_openat .deleteme
+
+#
+# ^^^ you still won't have any sight of nfsd there, though, so .. 
+#
 
 ```
 
