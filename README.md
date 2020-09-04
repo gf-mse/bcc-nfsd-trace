@@ -108,30 +108,6 @@ cd bcc/build && checkinstall -D --pkgname bcc-local --pkgversion `date +%F` --de
 
 ```
 
-### Install Kernel Sources
-
- * _This is not needed any more. You can skip this section and shall be good to go now )_
-
-Sadly, that won't be enough since our code is referring some header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
-One way to go about it would be to download the full source:
-
-```Shell
-
-sudo apt-get build-dep linux linux-image-$(uname -r)
-
-apt-get source linux-image-unsigned-$(uname -r)
-# or "apt-get install linux-source" -- and then untar /usr/src/linux-$(uname -r)/... )
-
-cd linux-$(uname -r) # the name may differ
-cp /boot/config-$(uname -r) ./.config
-# or "yes '' | make oldconfig"
-make prepare # makes ./include/generated/autoconf.h
-
-# now move or symlink the code to /usr/src/linux-$(uname -r)
-cd ..
-sudo ln -s linux-$(uname -r) /usr/src/linux-$(uname -r)
-```
-
 ## Run the Tracer
 
 ```
