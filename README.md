@@ -5,7 +5,7 @@ An `iovisor/bcc` - based demo script which traces (server-side) nfsd opens, etc
   - [a word on tshark](#a-word-on-tshark)
 * [Installation](#installation)
   - [Install `iovisor-bcc`](#install-iovisor-bcc)
-  - [Install Kernel Sources](#install-kernel-sources)
+<!--  - [Install Kernel Sources](#install-kernel-sources) -->
 * [Run the Tracer](#run-the-tracer)
 
 ## Quick Glance
@@ -109,6 +109,8 @@ cd bcc/build && checkinstall -D --pkgname bcc-local --pkgversion `date +%F` --de
 ```
 
 ### Install Kernel Sources
+
+ * _This is not needed any more. You can skip this section and shall be good to go now )_
 
 Sadly, that won't be enough since our code is referring some header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
 One way to go about it would be to download the full source:
