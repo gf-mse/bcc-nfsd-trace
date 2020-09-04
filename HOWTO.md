@@ -170,9 +170,27 @@ And, indeed, running a quick `vfs_open()` check with `trace.py` we can see that 
 
 ## Tracing vfs_open()
 
-// using trace  
-// enumerating dentries  
-// timestamps  
+Fortunately, we do not have to write our program from scratch. Our uber-tool from `iovisor/bcc`, [trace.py](https://github.com/iovisor/bcc/blob/master/tools/trace.py) ( written by [Sasha Goldshtein](https://github.com/goldshtn) ), has an option to dump the generated C code :
+
+```Shell
+sudo ./trace.py -v 'vfs_open(const struct path *pP, struct file * pF)  (pP->dentry) "%s", pP->dentry->d_name.name' 
+```
+
+Sadly, the accompanying Python code does not come for granted -- but we can write it easily using lessons 4-7 from the [Python Developer Tutorial](https://github.com/iovisor/bcc/blob/master/docs/tutorial_bcc_python_developer.md) for `bcc`.
+
+Now when we have an example that compiles -- and it makes for a good starting point -- let us add a few enclosing directories to just the filename.  
+For that, we would need to traverse the file tree:
+
+```Shell
+# sudo ./trace.py -v 'vfs_open(const struct path *pP, struct file * pF)  (pP->dentry) "%s | %s", pP->dentry->d_parent->d_name.name,pP->dentry->d_name.name' 
+```
+
+Unfortunately, `bcc` does not allow `for` loops ( well, apparently there's [limited support](https://github.com/iovisor/bcc/issues/691) for it in _recent kernels_, but on older kernels and by default we're out of luck ). 
+
+Therefore, we would have to implement something like a "static" loop instead -- see `DSNIPPET` fiddling in [nfsd_open_trace.py](https://github.com/gf-mse/bcc-nfsd-trace/blob/master/nfsd_open_trace.py). However, this "static looping" can't go indefinitely due to BPF stack limitations, and therefore has to be limited to a fairly small number (4 was the maximum in my tests).
+
+Finally, it would be nice to have event timestamps -- so `get_unix_ts()` in [nfsd_open_trace.py](https://github.com/gf-mse/bcc-nfsd-trace/blob/master/nfsd_open_trace.py) is an adjustment of [trace.py](https://github.com/iovisor/bcc/blob/master/tools/trace.py)' `_time_off_str()` for our purpose.
+
 
 ## Tracing nfsd_dispatch()
 
