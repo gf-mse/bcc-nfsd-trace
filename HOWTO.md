@@ -182,7 +182,7 @@ Now when we have an example that compiles -- and it makes for a good starting po
 For that, we would need to traverse the file tree:
 
 ```Shell
-# sudo ./trace.py -v 'vfs_open(const struct path *pP, struct file * pF)  (pP->dentry) "%s | %s", pP->dentry->d_parent->d_name.name,pP->dentry->d_name.name' 
+sudo ./trace.py -v 'vfs_open(const struct path *pP, struct file * pF)  (pP->dentry) "%s | %s", pP->dentry->d_parent->d_name.name,pP->dentry->d_name.name' 
 ```
 
 Unfortunately, `bcc` does not allow `for` loops ( well, apparently there's [limited support](https://github.com/iovisor/bcc/issues/691) for it in _recent kernels_, but on older kernels and by default we're out of luck ). 
@@ -194,6 +194,40 @@ Finally, it would be nice to have event timestamps -- so `get_unix_ts()` in [nfs
 
 ## Tracing nfsd_dispatch()
 
-// adding kernel source  
-// passing `struct svc_rqst *rqstp`  
-// converting `sin_port` and `s_addr`  
+Listing opened files is already helpful -- but of course we'd like to have at least the IP address as well.  
+Examining the stack trace (see e.g. [above](#the-open-syscall)) and browsing the [source code](https://elixir.bootlin.com/linux/latest/source), we can see that one good entry point to check could be `nfsd_dispatch()`( [[1](https://github.com/torvalds/linux/blob/d8a5b80568a9cb66810e75b182018e9edb68e8ff/fs/nfsd/nfssvc.c#L791)], [[2](https://elixir.bootlin.com/linux/latest/C/ident/nfsd_dispatch)], [[3](https://elixir.bootlin.com/linux/latest/source/fs/nfsd/nfssvc.c#L1004)] ).
+
+There would be a tiny problem here -- we would need to store the ip address data from `nfsd_dispatch()` before we eventually get to e.g. `vfs_getattr()` and can inspect `dentry` data.  
+And this, of course, is what bpf hashes are for -- again, see lessons 4 and 6 from the `bcc` [tutorial](https://github.com/iovisor/bcc/blob/master/docs/tutorial_bcc_python_developer.md); the only thing to remember is to remove the pointer key from the hash when it is not needed anymore.
+
+Another issue is that our Python code would not be able to recognize complex kernel structures like `__kernel_sockaddr_storage`, and we shall help it by reducing the transferred data structure to standard C types.  
+Thus, `sin_family` and `sin_port` are converted to `unsigned short` type, and `s_addr` from `struct in_addr` is stored as an `unsigned int`.
+
+Finally, if one would have decided to attach to `nfsd_open()` instead of e.g. `vfs_open()` -- e.g. to have the file (`struct dentry *`) and the IP address (`struct svc_rqst`) at once -- then our code would have required the header `fs/nfsd/nfsfh.h` and wouldn't compile.
+
+The subsection below shows how to install full kernel source and make it compile in that case.
+
+### Install Kernel Sources
+
+ * _This is not needed any more. I am leaving it here as an illustration on how to include other kernel headers if required. _
+
+Sadly, that won't be enough since our code is referring some header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
+One way to go about it would be to download the full source:
+
+```Shell
+
+sudo apt-get build-dep linux linux-image-$(uname -r)
+
+apt-get source linux-image-unsigned-$(uname -r)
+# or "apt-get install linux-source" -- and then untar /usr/src/linux-$(uname -r)/... )
+
+cd linux-$(uname -r) # the name may differ
+cp /boot/config-$(uname -r) ./.config
+# or "yes '' | make oldconfig"
+make prepare # makes ./include/generated/autoconf.h
+
+# now move or symlink the code to /usr/src/linux-$(uname -r)
+cd ..
+sudo ln -s linux-$(uname -r) /usr/src/linux-$(uname -r)
+```
+
