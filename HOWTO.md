@@ -209,7 +209,7 @@ The subsection below shows how to install full kernel source and make it compile
 
 ### Install Kernel Sources
 
- * _This is not needed any more. I am leaving it here as an illustration on how to include other kernel headers if required. _
+ * _This is not needed any more. I am leaving it here as an illustration on how to include other kernel headers if required._
 
 Sadly, that won't be enough since our code is referring some header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
 One way to go about it would be to download the full source:
