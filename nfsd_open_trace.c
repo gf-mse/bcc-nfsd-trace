@@ -4,7 +4,12 @@
 
 #include <linux/fs.h>
 #include <linux/sunrpc/svc.h> /* struct svc_rqst */
-#include <../fs/nfsd/nfsfh.h> /* struct svc_fh */
+
+/* if we do not use nfsd_open(), then "struct svc_fh *fhp" and this header are also not needed */ 
+#define PROBE_NFSD_OPEN_OFF 1
+#ifndef PROBE_NFSD_OPEN_OFF
+    #include <../fs/nfsd/nfsfh.h> /* struct svc_fh */
+#endif
 
 #define OPCODE_NFSD_OPEN      1
 #define OPCODE_NFSD_GETATTR   2
@@ -79,7 +84,8 @@ void load_dentries(struct dentry* pD, struct probe_nfsd_open_data_t* p_data) {
         }    
 }
 
-
+/* "struct svc_fh *fhp" requires a full kernel source, so -- we temporarily switch this off */ 
+#ifndef PROBE_NFSD_OPEN_OFF
 int probe_nfsd_open( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh *fhp
                    , umode_t type, int may_flags, struct file **filp)
 {
@@ -123,6 +129,7 @@ int probe_nfsd_open( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh 
 
         return 0;
 }
+#endif
 
 // -------------------------------------------------------------------------------
 /* vfs_open() -- based version */

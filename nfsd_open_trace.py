@@ -128,9 +128,11 @@ def have_kernel_source( required = [REQUIRED_HEADER] ):
     return False
 
 
-if not have_kernel_source():
-    print "install kernel sources for `uname -r` first! [exiting]"
-    sys.exit(1)
+# full kernel source shall not be needed if we don't trace nfsd_open()
+if 0:
+    if not have_kernel_source():
+        print "install kernel sources for `uname -r` first! [exiting]"
+        sys.exit(1)
 
 
 if 0:
