@@ -41,7 +41,9 @@ struct probe_nfsd_open_data_t
          * -> include/uapi/asm-generic/int-l64.h
          */
         unsigned int          s_addr;      /*  Internet address  */
-    
+
+        unsigned long         i_ino;       /* from "struct inode" */
+
         char dname0[80];
         /* dnames */
 };
@@ -83,6 +85,19 @@ void load_dentries(struct dentry* pD, struct probe_nfsd_open_data_t* p_data) {
             p_data->dname0[0] = '\0' ;
         }    
 }
+
+static inline 
+void read_dentry_name(char* p, int size, struct dentry* pD) { 
+        void *__tmp = 0;
+
+        if (pD && pD->d_name.name != 0) {            
+                __tmp = (void *)pD->d_name.name;
+                bpf_probe_read_kernel(p, size, __tmp);
+        } else {
+            p[0] = '\0' ;
+        }    
+}
+
 
 /* "struct svc_fh *fhp" requires a full kernel source, so -- we temporarily switch this off */ 
 #ifndef PROBE_NFSD_OPEN_OFF
@@ -212,7 +227,13 @@ int retrieve_probe_data(struct pt_regs *ctx, u32 opcode, struct dentry* pD) {
             return 0;
         }
         
-
+        // retrieve the inode number, if set
+        if (pD->d_inode) {
+            __data.i_ino = pD->d_inode->i_ino;
+        } else {
+            __data.i_ino = 0;
+        }
+        
         load_dentries(pD, &__data);
 
         probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));

@@ -301,6 +301,8 @@ def print_event_default(cpu, data, size):
     str_path = make_path( event )
     ## str_path = '-'
 
+    inode = event.i_ino
+
     func_name = FUNCNAMES.get(event.opcode, '-')
 
     
@@ -315,7 +317,7 @@ def print_event_default(cpu, data, size):
         ip_bytes = pack('=I', event.s_addr )
         str_ip = inet_ntoa( ip_bytes )
         
-    message = "%s:%s %s" % ( str_ip, str_port, str_path )
+    message = "%s:%s %s (%s)" % ( str_ip, str_port, str_path, inode )
 
     ## print "%-26.22f %-16s %-6d %s" % ( time_s, event.comm, event.pid, str_path )  
     print "%-28s %-6s %-6d %-12s %s" % ( time_str, event.comm, event.pid, func_name, message )  
