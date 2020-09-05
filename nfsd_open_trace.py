@@ -318,7 +318,7 @@ def print_event_default(cpu, data, size):
     message = "%s:%s %s" % ( str_ip, str_port, str_path )
 
     ## print "%-26.22f %-16s %-6d %s" % ( time_s, event.comm, event.pid, str_path )  
-    print "%-29s %-6s %-6d %-12s %s" % ( time_str, event.comm, event.pid, func_name, message )  
+    print "%-28s %-6s %-6d %-12s %s" % ( time_str, event.comm, event.pid, func_name, message )  
 
 
 
@@ -344,7 +344,7 @@ if options.trace_getattr:
     b.attach_kprobe(event="vfs_getattr", fn_name="probe_vfs_getattr")
 
 
-print("%-29s %-6s %-6s %-12s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))
+print("%-28s %-6s %-6s %-12s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))
 
 # loop with callback to print_event
 b["probe_nfsd_open_events"].open_perf_buffer(print_event_default)
