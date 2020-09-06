@@ -7,6 +7,8 @@ Notes on making the script
 * [the open() syscall](#the-open-syscall)
 * [Tracing vfs_open()](#tracing-vfs_open)
 * [Tracing nfsd_dispatch()](#tracing-nfsd_dispatch)
+* [(optional) Install Kernel Sources](#install-kernel-sources) 
+
 
 ## The Goal
 
@@ -203,31 +205,10 @@ And this, of course, is what bpf hashes are for -- again, see lessons 4 and 6 fr
 Another issue is that our Python code would not be able to recognize complex kernel structures like `__kernel_sockaddr_storage`, and we shall help it by reducing the transferred data structure to standard C types.  
 Thus, `sin_family` and `sin_port` are converted to `unsigned short` type, and `s_addr` from `struct in_addr` is stored as an `unsigned int`.
 
-Finally, if one would have decided to attach to `nfsd_open()` instead of e.g. `vfs_open()` -- e.g. to have the file (`struct dentry *`) and the IP address (`struct svc_rqst`) at once -- then our code would have required the header `fs/nfsd/nfsfh.h` and wouldn't compile.
+## Install Kernel Sources
 
-The subsection below shows how to install full kernel source and make it compile in that case.
+Finally, if one would have decided to attach to e.g. `nfsd_lookup()`, or may be `nfsd_open()` instead of `vfs_open()` -- to have the file (`struct dentry *`) and the IP address (`struct svc_rqst`) at once -- then our code would have required the header `fs/nfsd/nfsfh.h` and wouldn't compile.
 
-### Install Kernel Sources
+In that case -- one way to go about it would be to install full kernel source, as outlined in the [README](README.md) : [Install Kernel Sources](README.md#install-kernel-sources).
 
- * _This is not needed any more. I am leaving it here as an illustration on how to include other kernel headers if required._
-
-Sadly, that won't be enough since our code is referring some header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
-One way to go about it would be to download the full source:
-
-```Shell
-
-sudo apt-get build-dep linux linux-image-$(uname -r)
-
-apt-get source linux-image-unsigned-$(uname -r)
-# or "apt-get install linux-source" -- and then untar /usr/src/linux-$(uname -r)/... )
-
-cd linux-$(uname -r) # the name may differ
-cp /boot/config-$(uname -r) ./.config
-# or "yes '' | make oldconfig"
-make prepare # makes ./include/generated/autoconf.h
-
-# now move or symlink the code to /usr/src/linux-$(uname -r)
-cd ..
-sudo ln -s linux-$(uname -r) /usr/src/linux-$(uname -r)
-```
 
