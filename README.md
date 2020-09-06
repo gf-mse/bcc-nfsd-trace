@@ -5,7 +5,7 @@ An `iovisor/bcc` - based demo script which traces (server-side) nfsd opens, etc
   - [a word on tshark](#a-word-on-tshark)
 * [Installation](#installation)
   - [Install `iovisor-bcc`](#install-iovisor-bcc)
-<!--  - [Install Kernel Sources](#install-kernel-sources) -->
+  - [(optional) Install Kernel Sources](#install-kernel-sources) 
 * [Run the Tracer](#run-the-tracer)
 
 ## Quick Glance
@@ -107,6 +107,32 @@ sudo apt-get install checkinstall
 cd bcc/build && checkinstall -D --pkgname bcc-local --pkgversion `date +%F` --delspec=no --spec=bcc-local.spec --maintainer='your-name@example.com'
 
 ```
+
+### Install Kernel Sources
+
+Sadly, some options would require header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
+
+ * _nb: if they aren't in use, full kernel source is <u>not</u> required and this section may be omitted. _
+
+One way to go about it would be to download the full source:
+
+```Shell
+
+sudo apt-get build-dep linux linux-image-$(uname -r)
+
+apt-get source linux-image-unsigned-$(uname -r)
+# or "apt-get install linux-source" -- and then untar /usr/src/linux-$(uname -r)/... )
+
+cd linux-$(uname -r) # the name may differ
+cp /boot/config-$(uname -r) ./.config
+# or "yes '' | make oldconfig"
+make prepare # makes ./include/generated/autoconf.h
+
+# now move or symlink the code to /usr/src/linux-$(uname -r)
+cd ..
+sudo ln -s linux-$(uname -r) /usr/src/linux-$(uname -r)
+```
+
 
 ## Run the Tracer
 
