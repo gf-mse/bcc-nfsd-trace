@@ -10,12 +10,19 @@
 #ifndef PROBE_NFSD_OPEN_OFF
     #include <../fs/nfsd/nfsfh.h> /* struct svc_fh */
 #endif
+// #define HAVE_KERNEL_SOURCE 1 // dev mode
+/* if have kernel source */
+#ifdef HAVE_KERNEL_SOURCE
+    #include <../fs/nfsd/nfsfh.h> /* struct svc_fh */
+#endif
 
 #define OPCODE_VFS_OPEN        1
 #define OPCODE_VFS_GETATTR     2
 #define OPCODE_VFS_UNLINK      3
 #define OPCODE_NOTIFY_CHANGE   4
 #define OPCODE_VFS_STATFS      5
+// let's merge various #define-s for all structures -- easier to join them to one if needed
+#define OPCODE_NFSD_LOOKUP     6
 
 #define MAX_FILENAME_LEN    256
 
@@ -102,7 +109,9 @@ void read_dentry_name(char* p, int size, struct dentry* pD) {
 
         if (pD && pD->d_name.name != 0) {            
                 __tmp = (void *)pD->d_name.name;
-                bpf_probe_read_kernel(p, size, __tmp);
+                // bpf_probe_read_kernel(p, size, __tmp);
+                bpf_probe_read_kernel(p, size-1, __tmp);
+                p[size-1] = '\0';
         } else {
             p[0] = '\0' ;
         }    
@@ -155,6 +164,112 @@ int probe_nfsd_open( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh 
         return 0;
 }
 #endif
+
+// -------------------------------------------------------------------------------
+/* nfsd_...() -- based probes; nb: these may require a full kernel source ref to compile */
+
+#ifdef HAVE_KERNEL_SOURCE
+
+// mostly replicating probe_nfsd_open_data_t for two reasons:
+//  (1) if we aren't using extra fields, we shall not be paying for that ;
+//  (2) using unions is fairly difficult due to limitations of the C-to-Python parser .
+struct probe_nfsd_lookup_data_t
+{
+        u32 opcode;
+        u64 timestamp_ns;
+
+        u32 tgid;
+        u32 pid;
+        char comm[TASK_COMM_LEN];
+
+        /* include/uapi/linux/in.h */
+        // __kernel_sa_family_t  sin_family;  /*  Address family    */
+        /* for __kernel_sa_family_t -- see include/uapi/linux/socket.h:10 */
+        unsigned short      sin_family;    /*  Address family    */
+        //      __be16        sin_port;    /*  Port number       */
+        /* tools/include/linux/types.h -> include/uapi/asm-generic/int-l64.h */
+        unsigned short        sin_port;    /*  Port number       */
+    
+        // struct in_addr     in_addr;     /*  Internet address  */
+        /* 
+         * include/uapi/linux/in.h 
+         * -> tools/include/linux/types.h 
+         * -> include/uapi/asm-generic/int-l64.h
+         */
+        unsigned int          s_addr;      /*  Internet address  */
+
+        unsigned long         i_ino;       /* from "struct inode" */
+        // char ino_name[80]; // a test: the name from inode' dentry
+
+        char  lookup_name[80];
+        char  dname[80]; /* dentry name */
+};
+
+BPF_PERF_OUTPUT(probe_nfsd_lookup_events);
+
+
+// -------------------------------------------------------------------------------
+
+//  nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
+//  				unsigned int len, struct svc_fh *resfh)
+int probe_nfsd_lookup( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name    
+                     , unsigned int len, struct svc_fh *resfh)
+{
+        u64 __pid_tgid = bpf_get_current_pid_tgid();
+        u32 __tgid = __pid_tgid >> 32;
+        u32 __pid = __pid_tgid; // implicit cast to u32 for bottom half
+
+        /* tgid_check */
+
+        void *__tmp = 0;
+        // if (__tgid == 23356) { return 0; }
+
+        struct probe_nfsd_lookup_data_t __data = {0};
+        __data.opcode = OPCODE_NFSD_LOOKUP;
+        __data.tgid = __tgid;
+        __data.pid = __pid;
+
+        __data.timestamp_ns = bpf_ktime_get_ns();
+        
+        bpf_get_current_comm(&__data.comm, sizeof(__data.comm));
+        /* comm filter // disabled */
+
+        // __entry->ipv4addr = rqstp->rq_addr.ss_family == AF_INET ? ((struct sockaddr_in *)&rqstp->rq_addr)->sin_addr.s_addr : 0;
+        __data.sin_family = rqstp->rq_addr.ss_family ;
+        if ( rqstp->rq_addr.ss_family == AF_INET ) {
+            struct sockaddr_in *pS = (struct sockaddr_in *) &rqstp->rq_addr ;
+
+            __data.sin_port = pS->sin_port ;
+            // __data.sin_addr.s_addr = pS->sin_addr.s_addr ;
+            __data.s_addr = pS->sin_addr.s_addr ;
+        } else {
+            __data.sin_port = 0 ;
+            // __data.sin_addr.s_addr = 0 ;
+            __data.s_addr = 0 ;
+        }
+
+        // "unsigned int len" probably means that it is not null-terminated
+        bpf_probe_read_kernel(&__data.lookup_name, sizeof(__data.lookup_name) - 1, name);
+        __data.lookup_name[sizeof(__data.lookup_name)-1] = '\0';
+
+        struct dentry* pD = fhp->fh_dentry; 
+        // retrieve the inode number, if set
+        if (pD->d_inode) {
+            __data.i_ino = pD->d_inode->i_ino;
+        } else {
+            __data.i_ino = 0;
+        }
+        // load_dentries(pD, &__data);
+        read_dentry_name(__data.dname, sizeof(__data.dname), pD);
+
+        probe_nfsd_lookup_events.perf_submit(ctx, &__data, sizeof(__data));
+
+        return 0;
+}
+
+
+#endif /* defined(HAVE_KERNEL_SOURCE) */
+
 
 // -------------------------------------------------------------------------------
 /* vfs_open() -- based version */

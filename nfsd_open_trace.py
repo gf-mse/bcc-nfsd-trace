@@ -39,11 +39,18 @@ if 1:
     parser.add_option('--trace-statfs',  '--stat',       action="store_true",       dest='trace_statfs',   default=False,  help="trace nfsd_dispatch() / vfs_statfs()"    )
     ## parser.add_option('--vfs_statx',   '--statx',      action="store_true",       dest='trace_statx',   default=False, help="trace vfs_statx()" )
 
+    # nfsd_...() stuff -- may require full kernel source ( see USE_KERNEL_SOURCE )
+    parser.add_option('--trace-lookup',  '--lookup',     action="store_true",       dest='trace_nfsd_lookup',   default=False,  help="trace nfsd_lookup() // requires kernel source" )
+
 options, args = parser.parse_args()
 
 N_PATH_COMPS = options.maxdirs
 ## NFSD_CHECK = options.nfsd_check
 NFSD_CHECK = 0 # the whole program is nfsd-only )
+
+USE_KERNEL_SOURCE = 0 # for 'fs/nfsd/nfsfh.h' etc -- tracing nfsd_...() functions requires that
+if options.trace_nfsd_lookup:
+    USE_KERNEL_SOURCE = 1
 
 # =========================================================================
 
@@ -62,7 +69,7 @@ def have_kernel_source( required = [REQUIRED_HEADER] ):
     #
     # do we already have the sources at some externally specified path ?
     #
-    
+
     BCC_KERNEL_SOURCE_PATH = os.environ.get('BCC_KERNEL_SOURCE', None)
     if BCC_KERNEL_SOURCE_PATH is not None:
         
@@ -108,8 +115,9 @@ def have_kernel_source( required = [REQUIRED_HEADER] ):
     else:
 
         message = """
-            kernel sources are required.
-            please download them using "apt-get source linux-image-unsigned-$(uname -r)"
+            for some options (tracing some nfsd_...() calls), kernel sources are required.
+            if they are in use -- please download the kernel source code
+            using "apt-get source linux-image-unsigned-$(uname -r)"
             ( or "apt-get install linux-source" -- and then untar /usr/src/linux-$(uname -r)/... )
 
             // then use either of the two to get the .config file:
@@ -132,7 +140,8 @@ def have_kernel_source( required = [REQUIRED_HEADER] ):
 
 
 # full kernel source shall not be needed if we don't trace nfsd_open()
-if 0:
+if USE_KERNEL_SOURCE:
+    print "[info] one of the specified options may require full kernel source .."
     if not have_kernel_source():
         print "install kernel sources for `uname -r` first! [exiting]"
         sys.exit(1)
@@ -236,6 +245,8 @@ COMMSNIPPET = r"""if (!is_nfsd(__data.comm)) return SKIP_IT;"""
 
 TGID_CHECK = r"""if (__tgid == %d) { return SKIP_IT; }"""
 
+KSOURCE_DEFINE = "#define HAVE_KERNEL_SOURCE 1"
+
 with open("nfsd_open_trace.c") as f:
     bpf_code = f.read()
 
@@ -252,6 +263,9 @@ for i in xrange(1, 1 + N_PATH_COMPS):
 
     tgid_snippet = TGID_CHECK % (os.getpid(), )
     bpf_code = bpf_code.replace( '/* tgid_check */', tgid_snippet )
+
+    if USE_KERNEL_SOURCE:
+        bpf_code = bpf_code.replace( '/* if have kernel source */', KSOURCE_DEFINE )
 
     if NFSD_CHECK:
         commsnippet = COMMSNIPPET
@@ -283,14 +297,16 @@ OPCODE_VFS_GETATTR     = 2
 OPCODE_VFS_UNLINK      = 3
 OPCODE_NOTIFY_CHANGE   = 4  
 OPCODE_VFS_STATFS      = 5 
-## OPCODE_VFS_STATX    = 3
+# let us have a joint list of constants for all probe structures --
+# -- makes potential refactoring easier
+OPCODE_NFSD_LOOKUP     = 6
 
 FUNCNAMES = { OPCODE_VFS_OPEN       : "vfs_open"
             , OPCODE_VFS_GETATTR    : "vfs_getattr"
             , OPCODE_VFS_UNLINK     : "vfs_unlink"
             , OPCODE_NOTIFY_CHANGE  : "notify_change"
             , OPCODE_VFS_STATFS     : "vfs_statfs"
-            ## , OPCODE_VFS_STATX   : "vfs_statx"
+            , OPCODE_NFSD_LOOKUP    : "nfsd_lookup"
             }
 
 
@@ -340,6 +356,49 @@ def print_event_default(cpu, data, size):
     print "%-28s %-6s %-6d %-14s %s" % ( time_str, event.comm, event.pid, func_name, message )  
 
 
+# --------------------------------------------------------------------------------------
+
+def print_event_lookup(cpu, data, size):
+
+    event = b["probe_nfsd_lookup_events"].event(data)
+
+
+    # unix timestamps
+    time_str = ts_to_str( get_unix_ts( event.timestamp_ns ))
+
+    ## str_path = '-'
+    str_path = event.lookup_name
+    if event.dname:
+        str_path = '%s/%s' % ( event.dname, str_path )
+
+    inode = event.i_ino
+    ## inode_name = event.ino_name
+
+    func_name = FUNCNAMES.get(event.opcode, '-')
+
+    
+    str_ip = '0'
+    str_port = '-'
+    if event.sin_family == AF_INET:
+        n_port = ntohs( event.sin_port )
+        str_port = str(n_port)
+        
+        ## str_ip = inet_ntoa( event.sin_addr.s_addr )
+        # [ https://stackoverflow.com/questions/14043886/python-2-3-convert-integer-to-bytes-cleanly/14044431#14044431 ]
+        ip_bytes = pack('=I', event.s_addr )
+        str_ip = inet_ntoa( ip_bytes )
+
+
+    ## message = "%s:%s %s (%s)" % ( str_ip, str_port, str_path, inode, inode_name )
+    # omit inode when it's not retrieved
+    if inode != 0:
+        message = "%s:%s %s (%s)" % ( str_ip, str_port, str_path, inode )
+    else:
+        message = "%s:%s %s" % ( str_ip, str_port, str_path )
+
+    ## print "%-26.22f %-16s %-6d %s" % ( time_s, event.comm, event.pid, str_path )  
+    print "%-28s %-6s %-6d %-14s %s" % ( time_str, event.comm, event.pid, func_name, message )  
+
 
 # ======================================================================================
 
@@ -377,9 +436,12 @@ print("%-28s %-6s %-6s %-14s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))
 # loop with callback to print_event
 b["probe_nfsd_open_events"].open_perf_buffer(print_event_default)
 
-##  if options.trace_statx:
-##      b["probe_vfs_stat_events"].open_perf_buffer(print_event_default)
 
+if options.trace_nfsd_lookup:
+
+    b.attach_kprobe(event="nfsd_lookup", fn_name="probe_nfsd_lookup")
+    b["probe_nfsd_lookup_events"].open_perf_buffer(print_event_lookup)
+    
 
 
 while 1:
