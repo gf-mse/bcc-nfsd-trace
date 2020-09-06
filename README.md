@@ -120,8 +120,29 @@ Options:
   -v, --verify          print instrumented C code
   --trace-getattr, --getattr
                         trace nfsd_dispatch() / vfs_getattr()
+  --trace-unlunk, --unlink
+                        trace nfsd_dispatch() / vfs_unlink()
+  --trace-chmod, --chmod
+                        trace nfsd_dispatch() / notify_change()
+  --trace-statfs, --stat
+                        trace nfsd_dispatch() / vfs_statfs()
 
 ```
 
-There's an example of the script output in the [Overview](#overview) section.
+An example -- client enters a remote directory and creates a file using a text editor ; `.#.deleteme` is a temporary symlink ( mc stuff ) :
+
+```
+# ./nfsd_open_trace.py --chmod --unlink -N 4
+TIME                         COMM   PID    FUNC           MESSAGE
+2020-09-06 15:11:39.092970   nfsd   7549   vfs_open       192.168.1.31:801 testdir (1336)
+2020-09-06 15:11:44.157736   nfsd   7549   notify_change  192.168.1.31:801 testdir/.deleteme (565) -> 0o100644
+2020-09-06 15:11:44.158855   nfsd   7549   vfs_open       192.168.1.31:801 testdir/.deleteme (565)
+2020-09-06 15:11:44.159177   nfsd   7549   vfs_unlink     192.168.1.31:801 testdir/.#.deleteme (566)
+2020-09-06 15:11:44.694515   nfsd   7549   vfs_open       192.168.1.31:801 testdir (1336)
+
+```
+
+Integer numbers after the filenames are the inode numbers.
+
+ * There's also a somewhat older example of the output in the [Overview](#overview) section.
 
