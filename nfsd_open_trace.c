@@ -16,13 +16,14 @@
     #include <../fs/nfsd/nfsfh.h> /* struct svc_fh */
 #endif
 
-#define OPCODE_VFS_OPEN        1
-#define OPCODE_VFS_GETATTR     2
-#define OPCODE_VFS_UNLINK      3
-#define OPCODE_NOTIFY_CHANGE   4
-#define OPCODE_VFS_STATFS      5
+#define OPCODE_VFS_OPEN            1
+#define OPCODE_VFS_GETATTR         2
+#define OPCODE_VFS_UNLINK          3
+#define OPCODE_NOTIFY_CHANGE       4
+#define OPCODE_VFS_STATFS          5
 // let's merge various #define-s for all structures -- easier to join them to one if needed
-#define OPCODE_NFSD_LOOKUP     6
+#define OPCODE_NFSD_LOOKUP         6
+#define OPCODE_NFSD_LOOKUP_DENTRY  7
 
 #define MAX_FILENAME_LEN    256
 
@@ -210,6 +211,77 @@ BPF_PERF_OUTPUT(probe_nfsd_lookup_events);
 
 // -------------------------------------------------------------------------------
 
+static inline 
+int get_nfsd_lookup_data( struct pt_regs *ctx, struct probe_nfsd_lookup_data_t* p_data, u32 opcode
+                        , struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name )
+{
+
+        u64 __pid_tgid = bpf_get_current_pid_tgid();
+        u32 __tgid = __pid_tgid >> 32;
+        u32 __pid = __pid_tgid; // implicit cast to u32 for bottom half
+
+        // void *__tmp = 0;
+        // if (__tgid == 23356) { return SKIP_IT; }
+
+        /* tgid_check */
+
+
+        // struct probe_nfsd_open_data_t __data = {0};
+        p_data->opcode = opcode;
+        p_data->tgid = __tgid;
+        p_data->pid = __pid;
+
+        p_data->timestamp_ns = bpf_ktime_get_ns();
+        
+        bpf_get_current_comm(&(p_data->comm), sizeof(p_data->comm));
+        /* comm filter // disabled */
+
+        struct svc_rqst** rqstpp = hash_getattr.lookup(&__pid_tgid);
+	if (rqstpp != 0) {
+            struct svc_rqst* rqstp = *rqstpp;
+            // one more check
+            if (rqstp == 0) return SKIP_IT;
+            
+            // else ..
+            
+            // __entry->ipv4addr = rqstp->rq_addr.ss_family == AF_INET ? ((struct sockaddr_in *)&rqstp->rq_addr)->sin_addr.s_addr : 0;
+            p_data->sin_family = rqstp->rq_addr.ss_family ;
+            if ( rqstp->rq_addr.ss_family == AF_INET ) {
+                struct sockaddr_in *pS = (struct sockaddr_in *) &rqstp->rq_addr ;
+
+                p_data->sin_port = pS->sin_port ;
+                // p_data->sin_addr.s_addr = pS->sin_addr.s_addr ;
+                p_data->s_addr = pS->sin_addr.s_addr ;
+            } else {
+                p_data->sin_port = 0 ;
+                // p_data->sin_addr.s_addr = 0 ;
+                p_data->s_addr = 0 ;
+            }
+        } else {
+            // unknown/unexpected, skip it
+            return SKIP_IT;
+        }
+
+        // "unsigned int len" probably means that it is not null-terminated
+        bpf_probe_read_kernel(p_data->lookup_name, sizeof(p_data->lookup_name) - 1, name);
+        p_data->lookup_name[sizeof(p_data->lookup_name)-1] = '\0';
+
+        struct dentry* pD = fhp->fh_dentry; 
+        // retrieve the inode number, if set
+        if (pD->d_inode) {
+            p_data->i_ino = pD->d_inode->i_ino;
+        } else {
+            p_data->i_ino = 0;
+        }
+        // load_dentries(pD, &__data);
+        read_dentry_name(p_data->dname, sizeof(p_data->dname), pD);
+
+        // probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+        
+        return 0;
+}
+
+#if 0
 //  nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 //  				unsigned int len, struct svc_fh *resfh)
 int probe_nfsd_lookup( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name    
@@ -263,6 +335,38 @@ int probe_nfsd_lookup( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_f
         read_dentry_name(__data.dname, sizeof(__data.dname), pD);
 
         probe_nfsd_lookup_events.perf_submit(ctx, &__data, sizeof(__data));
+
+        return 0;
+}
+#endif
+
+
+int probe_nfsd_lookup( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name    
+                     , unsigned int len, struct svc_fh *resfh)
+{
+        struct probe_nfsd_lookup_data_t __data = {0};
+
+        int result = get_nfsd_lookup_data( ctx, &__data, OPCODE_NFSD_LOOKUP, rqstp, fhp, name );
+        if ( result != SKIP_IT ) {
+            probe_nfsd_lookup_events.perf_submit(ctx, &__data, sizeof(__data));
+        }
+
+        return 0;
+}
+
+//  nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
+//  		   const char *name, unsigned int len,
+//  		   struct svc_export **exp_ret, struct dentry **dentry_ret)
+int probe_nfsd_lookup_dentry( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh *fhp
+  		            , const char *name, unsigned int len
+  		            , struct svc_export **exp_ret, struct dentry **dentry_ret )
+{
+        struct probe_nfsd_lookup_data_t __data = {0};
+
+        int result = get_nfsd_lookup_data( ctx, &__data, OPCODE_NFSD_LOOKUP_DENTRY, rqstp, fhp, name );
+        if ( result != SKIP_IT ) {
+            probe_nfsd_lookup_events.perf_submit(ctx, &__data, sizeof(__data));
+        }
 
         return 0;
 }

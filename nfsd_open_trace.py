@@ -40,7 +40,9 @@ if 1:
     ## parser.add_option('--vfs_statx',   '--statx',      action="store_true",       dest='trace_statx',   default=False, help="trace vfs_statx()" )
 
     # nfsd_...() stuff -- may require full kernel source ( see USE_KERNEL_SOURCE )
-    parser.add_option('--trace-lookup',  '--lookup',     action="store_true",       dest='trace_nfsd_lookup',   default=False,  help="trace nfsd_lookup() // requires kernel source" )
+    parser.add_option('--trace-lookup',  '--lookup',     action="store_true",       dest='trace_nfsd_lookup',    default=False,  help="trace nfsd_lookup() // requires kernel source" )
+    parser.add_option('--trace-lookup-dentry',  '--lookup-dentry', '--lookup-d'
+                     ,                                   action="store_true",       dest='trace_nfsd_lookup_dentry',  default=False,  help="trace nfsd_lookup_dentry() // requires kernel source" )
 
 options, args = parser.parse_args()
 
@@ -49,8 +51,11 @@ N_PATH_COMPS = options.maxdirs
 NFSD_CHECK = 0 # the whole program is nfsd-only )
 
 USE_KERNEL_SOURCE = 0 # for 'fs/nfsd/nfsfh.h' etc -- tracing nfsd_...() functions requires that
-if options.trace_nfsd_lookup:
+if     options.trace_nfsd_lookup        \
+    or options.trace_nfsd_lookup_dentry :
+    # these nfsd_..() functions may refer fs/nfsd/*.h, which are not in the main header tree
     USE_KERNEL_SOURCE = 1
+
 
 # =========================================================================
 
@@ -291,22 +296,25 @@ if options.print_code:
 ## #define OPCODE_VFS_OPEN     1
 ## #define OPCODE_VFS_GETATTR  2
 
-## OPCODE_NFSD_OPEN     = 1
-OPCODE_VFS_OPEN        = 1
-OPCODE_VFS_GETATTR     = 2
-OPCODE_VFS_UNLINK      = 3
-OPCODE_NOTIFY_CHANGE   = 4  
-OPCODE_VFS_STATFS      = 5 
+## OPCODE_NFSD_OPEN = 1
+OPCODE_VFS_OPEN            = 1
+OPCODE_VFS_GETATTR         = 2
+OPCODE_VFS_UNLINK          = 3
+OPCODE_NOTIFY_CHANGE       = 4  
+OPCODE_VFS_STATFS          = 5 
 # let us have a joint list of constants for all probe structures --
 # -- makes potential refactoring easier
-OPCODE_NFSD_LOOKUP     = 6
+OPCODE_NFSD_LOOKUP         = 6
+OPCODE_NFSD_LOOKUP_DENTRY  = 7
 
-FUNCNAMES = { OPCODE_VFS_OPEN       : "vfs_open"
-            , OPCODE_VFS_GETATTR    : "vfs_getattr"
-            , OPCODE_VFS_UNLINK     : "vfs_unlink"
-            , OPCODE_NOTIFY_CHANGE  : "notify_change"
-            , OPCODE_VFS_STATFS     : "vfs_statfs"
-            , OPCODE_NFSD_LOOKUP    : "nfsd_lookup"
+FUNCNAMES = { OPCODE_VFS_OPEN             : "vfs_open"
+            , OPCODE_VFS_GETATTR          : "vfs_getattr"
+            , OPCODE_VFS_UNLINK           : "vfs_unlink"
+            , OPCODE_NOTIFY_CHANGE        : "notify_change"
+            , OPCODE_VFS_STATFS           : "vfs_statfs"
+            , OPCODE_NFSD_LOOKUP          : "nfsd_lookup"
+            ## , OPCODE_NFSD_LOOKUP_DENTRY   : "nfsd_lookup_dentry"
+            , OPCODE_NFSD_LOOKUP_DENTRY   : "nfsd_lookup_d"
             }
 
 
@@ -437,9 +445,17 @@ print("%-28s %-6s %-6s %-14s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))
 b["probe_nfsd_open_events"].open_perf_buffer(print_event_default)
 
 
-if options.trace_nfsd_lookup:
-
-    b.attach_kprobe(event="nfsd_lookup", fn_name="probe_nfsd_lookup")
+if    options.trace_nfsd_lookup        \
+   or options.trace_nfsd_lookup_dentry :
+    
+    if options.trace_nfsd_lookup :
+        b.attach_kprobe(event="nfsd_lookup", fn_name="probe_nfsd_lookup")
+        ## b.attach_kretprobe(event="nfsd_lookup", fn_name="probe_nfsd_lookup")
+        # ^^^ that won't have any stack -- use "struct pt_regs *" - only functions 
+    if options.trace_nfsd_lookup_dentry :
+        b.attach_kprobe(event="nfsd_lookup_dentry", fn_name="probe_nfsd_lookup_dentry")
+    
+    
     b["probe_nfsd_lookup_events"].open_perf_buffer(print_event_lookup)
     
 
