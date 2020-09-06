@@ -11,9 +11,10 @@
     #include <../fs/nfsd/nfsfh.h> /* struct svc_fh */
 #endif
 
-#define OPCODE_VFS_OPEN      1
-#define OPCODE_VFS_GETATTR   2
-#define OPCODE_VFS_UNLINK    3
+#define OPCODE_VFS_OPEN        1
+#define OPCODE_VFS_GETATTR     2
+#define OPCODE_VFS_UNLINK      3
+#define OPCODE_NOTIFY_CHANGE   4
 
 #define MAX_FILENAME_LEN    256
 
@@ -48,7 +49,10 @@ struct probe_nfsd_open_data_t
 
         unsigned long         i_ino;       /* from "struct inode" */
 
-        char dname0[80];
+        unsigned short        umode; /* for notify_change() */
+
+        // sadly, pointer arithmetic seems to be out of the question  
+        char dname0[72];
         /* dnames */
 };
 
@@ -187,6 +191,7 @@ static inline
 int retrieve_probe_data(struct pt_regs *ctx, struct probe_nfsd_open_data_t* p_data, u32 opcode, struct dentry* pD) {
 
         u64 __pid_tgid = bpf_get_current_pid_tgid();
+        // if (__pid_tgid == 0) return SKIP_IT; // suppressing strange messages from pid 0 and comm ''
         u32 __tgid = __pid_tgid >> 32;
         u32 __pid = __pid_tgid; // implicit cast to u32 for bottom half
 
@@ -306,3 +311,37 @@ int probe_vfs_unlink( struct pt_regs *ctx, struct inode *dir
 
         return 0;
 }
+
+
+//  int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
+//  {
+//  	struct inode *inode = dentry->d_inode;
+//  	umode_t mode = inode->i_mode;
+int probe_notify_change( struct pt_regs *ctx, struct dentry * pD, struct iattr * attr, struct inode **delegated_inode)
+{
+        struct probe_nfsd_open_data_t __data = {0};
+
+        // struct dentry* pD = pP->dentry; 
+        // struct inode *inode = pD->d_inode;
+        // umode_t nmode = pD->d_inode->i_mode;
+        // umode_t new_mode = attr->ia_mode;
+
+        // if ( !( pD->d_inode ) || pD->d_inode->i_mode == attr->ia_mode ) return 0;
+        // if ( new_mode == nmode ) return 0;
+        // newattrs.ia_valid = ATTR_MODE | ATTR_CTIME
+        if (!(attr->ia_valid & ATTR_MODE)) return 0;
+        // else ..
+
+        // notify() seems to be happening after chmod() -- see e.g. chmod_common() :  
+        // https://github.com/torvalds/linux/blob/bcf876870b95592b52519ed4aafcf9d95999bc9c/fs/open.c#L576
+        // __data.umode = pD->d_inode->i_mode ;
+        __data.umode = attr->ia_mode ;
+        
+        int result = retrieve_probe_data(ctx, &__data, OPCODE_NOTIFY_CHANGE, pD);
+        if ( result != SKIP_IT ) {
+            probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+        }
+
+        return 0;
+}
+

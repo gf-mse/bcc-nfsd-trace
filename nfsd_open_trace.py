@@ -34,7 +34,8 @@ if 1:
     parser.add_option('--verify',     '-v',     action="store_true",              dest='print_code', default=False, help="print instrumented C code" )
 
     parser.add_option('--trace-getattr', '--getattr',    action="store_true",       dest='trace_getattr', default=False, help="trace nfsd_dispatch() / vfs_getattr()" )
-    parser.add_option('--trace-unlunk',  '--unlink',     action="store_true",       dest='trace_unlink', default=False, help="trace nfsd_dispatch() / vfs_unlink()" )
+    parser.add_option('--trace-unlunk',  '--unlink',     action="store_true",       dest='trace_unlink',  default=False, help="trace nfsd_dispatch() / vfs_unlink()" )
+    parser.add_option('--trace-chmod',   '--chmod',      action="store_true",       dest='trace_chmod',   default=False, help="trace nfsd_dispatch() / notify_change()" )
     ## parser.add_option('--vfs_statx',   '--statx',      action="store_true",       dest='trace_statx',   default=False, help="trace vfs_statx()" )
 
 options, args = parser.parse_args()
@@ -222,7 +223,7 @@ DSNIPPET = r"""
 DSNIPPET = dedent(DSNIPPET)
 
 VSNIPPET = r"""
-    char %(dname)s[80];
+    char %(dname)s[72];
     /* dnames */
 """
 
@@ -273,14 +274,19 @@ if options.print_code:
 ## #define OPCODE_VFS_OPEN     1
 ## #define OPCODE_VFS_GETATTR  2
 
+## OPCODE_NFSD_OPEN     = 1
 OPCODE_VFS_OPEN        = 1
 OPCODE_VFS_GETATTR     = 2
 OPCODE_VFS_UNLINK      = 3
+OPCODE_NOTIFY_CHANGE   = 4  
+OPCODE_VFS_STATFS      = 5 
 ## OPCODE_VFS_STATX    = 3
 
 FUNCNAMES = { OPCODE_VFS_OPEN       : "vfs_open"
             , OPCODE_VFS_GETATTR    : "vfs_getattr"
             , OPCODE_VFS_UNLINK     : "vfs_unlink"
+            , OPCODE_NOTIFY_CHANGE  : "notify_change"
+            , OPCODE_VFS_STATFS     : "vfs_statfs"
             ## , OPCODE_VFS_STATX   : "vfs_statx"
             }
 
@@ -323,8 +329,12 @@ def print_event_default(cpu, data, size):
         
     message = "%s:%s %s (%s)" % ( str_ip, str_port, str_path, inode )
 
-    ## print "%-26.22f %-16s %-6d %s" % ( time_s, event.comm, event.pid, str_path )  
-    print "%-28s %-6s %-6d %-12s %s" % ( time_str, event.comm, event.pid, func_name, message )  
+    # chmod
+    if event.opcode == OPCODE_NOTIFY_CHANGE:
+        newmode = '0o%06o' % event.umode
+        message = '%s -> %s' % ( message, newmode )
+
+    print "%-28s %-6s %-6d %-14s %s" % ( time_str, event.comm, event.pid, func_name, message )  
 
 
 
@@ -352,8 +362,11 @@ if options.trace_getattr:
 if options.trace_unlink:
     b.attach_kprobe(event="vfs_unlink", fn_name="probe_vfs_unlink")
 
+if options.trace_chmod:
+    b.attach_kprobe(event="notify_change", fn_name="probe_notify_change")
 
-print("%-28s %-6s %-6s %-12s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))
+
+print("%-28s %-6s %-6s %-14s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))
 
 # loop with callback to print_event
 b["probe_nfsd_open_events"].open_perf_buffer(print_event_default)
