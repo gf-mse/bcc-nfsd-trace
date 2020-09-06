@@ -270,6 +270,7 @@ int probe_vfs_open(struct pt_regs *ctx, const struct path *pP, struct file * pF)
         struct probe_nfsd_open_data_t __data = {0};
 
         struct dentry* pD = pP->dentry; 
+        if ( pF->f_path.dentry ) { pD = pF->f_path.dentry; }
 
         int result = retrieve_probe_data(ctx, &__data, OPCODE_VFS_OPEN, pD);
         if ( result != SKIP_IT ) {
