@@ -193,7 +193,6 @@ static inline
 int retrieve_probe_data(struct pt_regs *ctx, struct probe_nfsd_open_data_t* p_data, u32 opcode, struct dentry* pD) {
 
         u64 __pid_tgid = bpf_get_current_pid_tgid();
-        // if (__pid_tgid == 0) return SKIP_IT; // suppressing strange messages from pid 0 and comm ''
         u32 __tgid = __pid_tgid >> 32;
         u32 __pid = __pid_tgid; // implicit cast to u32 for bottom half
 
