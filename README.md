@@ -110,9 +110,9 @@ cd bcc/build && checkinstall -D --pkgname bcc-local --pkgversion `date +%F` --de
 
 ### Install Kernel Sources
 
-Sadly, some options would require header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
+Sadly, some options may require header files outside of the "stock" kernel header tree which comes with the "linux-headers" package.
 
- * _nb: if they aren't in use, full kernel source is <u>not</u> required and this section may be omitted. _
+ * _nb: however, if they are not in use, full kernel source is <ins>not</ins> required and this section can be skipped._
 
 One way to go about it would be to download the full source:
 
