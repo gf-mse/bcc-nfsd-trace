@@ -17,6 +17,10 @@
 
 #define MAX_FILENAME_LEN    256
 
+// skipping unrelated probes
+#define SKIP_IT (-1)
+// #define PROCEED (0)
+
 struct probe_nfsd_open_data_t
 {
         u32 opcode;
@@ -180,76 +184,91 @@ int probe_nfsd_dispatch_exit( struct pt_regs *ctx, struct svc_rqst *rqstp, __be3
 // -------------------------------------------------------------------------------
 
 static inline 
-int retrieve_probe_data(struct pt_regs *ctx, u32 opcode, struct dentry* pD) {
+int retrieve_probe_data(struct pt_regs *ctx, struct probe_nfsd_open_data_t* p_data, u32 opcode, struct dentry* pD) {
 
         u64 __pid_tgid = bpf_get_current_pid_tgid();
         u32 __tgid = __pid_tgid >> 32;
         u32 __pid = __pid_tgid; // implicit cast to u32 for bottom half
 
+        // if (__pid_tgid == 0) return SKIP_IT; // trying to suppress strange messages from pid 0 and comm ''
+
         /* tgid_check */
 
-        void *__tmp = 0;
-        // if (__tgid == 23356) { return 0; }
+        // void *__tmp = 0;
+        // if (__tgid == 23356) { return SKIP_IT; }
 
-        struct probe_nfsd_open_data_t __data = {0};
-        __data.opcode = opcode;
-        __data.tgid = __tgid;
-        __data.pid = __pid;
+        // struct probe_nfsd_open_data_t __data = {0};
+        p_data->opcode = opcode;
+        p_data->tgid = __tgid;
+        p_data->pid = __pid;
 
-        __data.timestamp_ns = bpf_ktime_get_ns();
+        p_data->timestamp_ns = bpf_ktime_get_ns();
         
-        bpf_get_current_comm(&__data.comm, sizeof(__data.comm));
+        bpf_get_current_comm(&(p_data->comm), sizeof(p_data->comm));
         /* comm filter // disabled */
 
         struct svc_rqst** rqstpp = hash_getattr.lookup(&__pid_tgid);
 	if (rqstpp != 0) {
             struct svc_rqst* rqstp = *rqstpp;
             // one more check
-            if (rqstp == 0) return 0;
+            if (rqstp == 0) return SKIP_IT;
             
             // else ..
             
             // __entry->ipv4addr = rqstp->rq_addr.ss_family == AF_INET ? ((struct sockaddr_in *)&rqstp->rq_addr)->sin_addr.s_addr : 0;
-            __data.sin_family = rqstp->rq_addr.ss_family ;
+            p_data->sin_family = rqstp->rq_addr.ss_family ;
             if ( rqstp->rq_addr.ss_family == AF_INET ) {
                 struct sockaddr_in *pS = (struct sockaddr_in *) &rqstp->rq_addr ;
 
-                __data.sin_port = pS->sin_port ;
-                // __data.sin_addr.s_addr = pS->sin_addr.s_addr ;
-                __data.s_addr = pS->sin_addr.s_addr ;
+                p_data->sin_port = pS->sin_port ;
+                // p_data->sin_addr.s_addr = pS->sin_addr.s_addr ;
+                p_data->s_addr = pS->sin_addr.s_addr ;
             } else {
-                __data.sin_port = 0 ;
-                // __data.sin_addr.s_addr = 0 ;
-                __data.s_addr = 0 ;
+                p_data->sin_port = 0 ;
+                // p_data->sin_addr.s_addr = 0 ;
+                p_data->s_addr = 0 ;
             }
         } else {
             // unknown/unexpected, skip it
-            return 0;
+            return SKIP_IT;
         }
-        
+
         // retrieve the inode number, if set
         if (pD->d_inode) {
-            __data.i_ino = pD->d_inode->i_ino;
+            p_data->i_ino = pD->d_inode->i_ino;
+            //  if (pD->d_inode->i_sb) {
+            //      // bpf_probe_read_kernel(&p_data->ino_name, sizeof(p_data->ino_name), __tmp); 
+            //      read_dentry_name((char*)&p_data->ino_name, sizeof(p_data->ino_name), pD->d_inode->i_sb->s_root );
+            //  } else {
+            //      p_data->ino_name[0] = '\0';
+            //  }
         } else {
-            __data.i_ino = 0;
+            p_data->i_ino = 0;
+            // p_data->ino_name[0] = '\0';
         }
         
-        load_dentries(pD, &__data);
+        load_dentries(pD, p_data);
 
-        probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+        // probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
         
         return 0;
 }
+
 
 // -------------------------------------------------------------------------------
 
 int probe_vfs_open(struct pt_regs *ctx, const struct path *pP, struct file * pF)
 {
 
+        struct probe_nfsd_open_data_t __data = {0};
+
         struct dentry* pD = pP->dentry; 
 
-        retrieve_probe_data(ctx, OPCODE_VFS_OPEN, pD);
-
+        int result = retrieve_probe_data(ctx, &__data, OPCODE_VFS_OPEN, pD);
+        if ( result != SKIP_IT ) {
+            probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+        }
+            
         return 0;
 }
 
@@ -258,9 +277,15 @@ int probe_vfs_open(struct pt_regs *ctx, const struct path *pP, struct file * pF)
 int probe_vfs_getattr( struct pt_regs *ctx, const struct path *pP
                      , struct kstat *stat, u32 request_mask, unsigned int query_flags )
 {
+
+        struct probe_nfsd_open_data_t __data = {0};
+
         struct dentry* pD = pP->dentry; 
 
-        retrieve_probe_data(ctx, OPCODE_VFS_GETATTR, pD);
+        int result = retrieve_probe_data(ctx, &__data, OPCODE_VFS_GETATTR, pD);
+        if ( result != SKIP_IT ) {
+            probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+        }
 
         return 0;
 }
@@ -270,9 +295,14 @@ int probe_vfs_getattr( struct pt_regs *ctx, const struct path *pP
 int probe_vfs_unlink( struct pt_regs *ctx, struct inode *dir
                     , struct dentry *pD, struct inode **delegated_inode )
 {
+        struct probe_nfsd_open_data_t __data = {0};
+
         // struct dentry* pD = pP->dentry; 
 
-        retrieve_probe_data(ctx, OPCODE_VFS_UNLINK, pD);
+        int result = retrieve_probe_data(ctx, &__data, OPCODE_VFS_UNLINK, pD);
+        if ( result != SKIP_IT ) {
+            probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+        }
 
         return 0;
 }

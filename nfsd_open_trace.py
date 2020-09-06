@@ -228,9 +228,9 @@ VSNIPPET = r"""
 
 VSNIPPET = dedent( VSNIPPET )
 
-COMMSNIPPET = r"""if (!is_nfsd(__data.comm)) return 0;"""
+COMMSNIPPET = r"""if (!is_nfsd(__data.comm)) return SKIP_IT;"""
 
-TGID_CHECK = r"""if (__tgid == %d) { return 0; }"""
+TGID_CHECK = r"""if (__tgid == %d) { return SKIP_IT; }"""
 
 with open("nfsd_open_trace.c") as f:
     bpf_code = f.read()
