@@ -85,8 +85,9 @@ void load_dentries(struct dentry* pD, struct probe_nfsd_open_data_t* p_data) {
 
         if (pD && pD->d_name.name != 0) {            
                 __tmp = (void *)pD->d_name.name;
-                bpf_probe_read_kernel(p_data->dname0, sizeof(p_data->dname0), __tmp);
-
+                bpf_probe_read_kernel(p_data->dname0, sizeof(p_data->dname0) - 1, __tmp);
+                p_data->dname0[sizeof(p_data->dname0) - 1] = '\0'; // cut the name if too long
+            
                 pD = pD->d_parent;
                 /* dentries */
 

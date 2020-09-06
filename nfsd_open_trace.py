@@ -211,7 +211,9 @@ DSNIPPET = r"""
     if (pD && pD->d_name.name != 0) {
             // void *__tmp = (void *)pD->d_name.name;
             __tmp = (void *)pD->d_name.name;
-            bpf_probe_read_kernel(p_data->%(dname)s, sizeof(p_data->%(dname)s), __tmp);
+            // bpf_probe_read_kernel(p_data->%(dname)s, sizeof(p_data->%(dname)s), __tmp);
+            bpf_probe_read_kernel(p_data->%(dname)s, sizeof(p_data->%(dname)s) - 1, __tmp);
+            p_data->%(dname)s[sizeof(p_data->%(dname)s) - 1] = '\0'; // cut the name if too long
 
             pD = pD->d_parent;
             /* dentries */
