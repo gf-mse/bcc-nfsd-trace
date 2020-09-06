@@ -33,9 +33,10 @@ if 1:
     ## parser.add_option('--nfsd-check', '-C',     action="store_true",              dest='nfsd_check', default=False, help="check for nfsd actions only" )
     parser.add_option('--verify',     '-v',     action="store_true",              dest='print_code', default=False, help="print instrumented C code" )
 
-    parser.add_option('--trace-getattr', '--getattr',    action="store_true",       dest='trace_getattr', default=False, help="trace nfsd_dispatch() / vfs_getattr()" )
-    parser.add_option('--trace-unlunk',  '--unlink',     action="store_true",       dest='trace_unlink',  default=False, help="trace nfsd_dispatch() / vfs_unlink()" )
-    parser.add_option('--trace-chmod',   '--chmod',      action="store_true",       dest='trace_chmod',   default=False, help="trace nfsd_dispatch() / notify_change()" )
+    parser.add_option('--trace-getattr', '--getattr',    action="store_true",       dest='trace_getattr',  default=False,  help="trace nfsd_dispatch() / vfs_getattr()"   )
+    parser.add_option('--trace-unlunk',  '--unlink',     action="store_true",       dest='trace_unlink',   default=False,  help="trace nfsd_dispatch() / vfs_unlink()"    )
+    parser.add_option('--trace-chmod',   '--chmod',      action="store_true",       dest='trace_chmod',    default=False,  help="trace nfsd_dispatch() / notify_change()" )
+    parser.add_option('--trace-statfs',  '--stat',       action="store_true",       dest='trace_statfs',   default=False,  help="trace nfsd_dispatch() / vfs_statfs()"    )
     ## parser.add_option('--vfs_statx',   '--statx',      action="store_true",       dest='trace_statx',   default=False, help="trace vfs_statx()" )
 
 options, args = parser.parse_args()
@@ -364,6 +365,9 @@ if options.trace_unlink:
 
 if options.trace_chmod:
     b.attach_kprobe(event="notify_change", fn_name="probe_notify_change")
+
+if options.trace_statfs:
+    b.attach_kprobe(event="vfs_statfs", fn_name="probe_vfs_statfs")
 
 
 print("%-28s %-6s %-6s %-14s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))

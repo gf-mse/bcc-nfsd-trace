@@ -15,6 +15,7 @@
 #define OPCODE_VFS_GETATTR     2
 #define OPCODE_VFS_UNLINK      3
 #define OPCODE_NOTIFY_CHANGE   4
+#define OPCODE_VFS_STATFS      5
 
 #define MAX_FILENAME_LEN    256
 
@@ -345,3 +346,19 @@ int probe_notify_change( struct pt_regs *ctx, struct dentry * pD, struct iattr *
         return 0;
 }
 
+
+// int vfs_statfs(const struct path *path, struct kstatfs *buf)
+int probe_vfs_statfs( struct pt_regs *ctx, const struct path *pP, struct kstatfs *buf )
+{
+
+        struct probe_nfsd_open_data_t __data = {0};
+
+        struct dentry* pD = pP->dentry; 
+
+        int result = retrieve_probe_data(ctx, &__data, OPCODE_VFS_STATFS, pD);
+        if ( result != SKIP_IT ) {
+            probe_nfsd_open_events.perf_submit(ctx, &__data, sizeof(__data));
+        }
+
+        return 0;
+}
