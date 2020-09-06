@@ -11,9 +11,9 @@
     #include <../fs/nfsd/nfsfh.h> /* struct svc_fh */
 #endif
 
-#define OPCODE_NFSD_OPEN      1
-#define OPCODE_NFSD_GETATTR   2
-// #define OPCODE_VFS_STAT       3
+#define OPCODE_VFS_OPEN      1
+#define OPCODE_VFS_GETATTR   2
+#define OPCODE_VFS_UNLINK    3
 
 #define MAX_FILENAME_LEN    256
 
@@ -114,7 +114,7 @@ int probe_nfsd_open( struct pt_regs *ctx, struct svc_rqst *rqstp, struct svc_fh 
         // if (__tgid == 23356) { return 0; }
 
         struct probe_nfsd_open_data_t __data = {0};
-        __data.opcode = OPCODE_NFSD_OPEN;
+        __data.opcode = OPCODE_VFS_OPEN;
         __data.tgid = __tgid;
         __data.pid = __pid;
 
@@ -248,7 +248,7 @@ int probe_vfs_open(struct pt_regs *ctx, const struct path *pP, struct file * pF)
 
         struct dentry* pD = pP->dentry; 
 
-        retrieve_probe_data(ctx, OPCODE_NFSD_OPEN, pD);
+        retrieve_probe_data(ctx, OPCODE_VFS_OPEN, pD);
 
         return 0;
 }
@@ -260,7 +260,19 @@ int probe_vfs_getattr( struct pt_regs *ctx, const struct path *pP
 {
         struct dentry* pD = pP->dentry; 
 
-        retrieve_probe_data(ctx, OPCODE_NFSD_GETATTR, pD);
+        retrieve_probe_data(ctx, OPCODE_VFS_GETATTR, pD);
+
+        return 0;
+}
+
+
+// int vfs_unlink(struct inode *dir, struct dentry *dentry, struct inode **delegated_inode)
+int probe_vfs_unlink( struct pt_regs *ctx, struct inode *dir
+                    , struct dentry *pD, struct inode **delegated_inode )
+{
+        // struct dentry* pD = pP->dentry; 
+
+        retrieve_probe_data(ctx, OPCODE_VFS_UNLINK, pD);
 
         return 0;
 }

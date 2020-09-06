@@ -34,6 +34,7 @@ if 1:
     parser.add_option('--verify',     '-v',     action="store_true",              dest='print_code', default=False, help="print instrumented C code" )
 
     parser.add_option('--trace-getattr', '--getattr',    action="store_true",       dest='trace_getattr', default=False, help="trace nfsd_dispatch() / vfs_getattr()" )
+    parser.add_option('--trace-unlunk',  '--unlink',     action="store_true",       dest='trace_unlink', default=False, help="trace nfsd_dispatch() / vfs_unlink()" )
     ## parser.add_option('--vfs_statx',   '--statx',      action="store_true",       dest='trace_statx',   default=False, help="trace vfs_statx()" )
 
 options, args = parser.parse_args()
@@ -272,11 +273,14 @@ if options.print_code:
 ## #define OPCODE_VFS_OPEN     1
 ## #define OPCODE_VFS_GETATTR  2
 
-OPCODE_NFSD_OPEN     = 1
-OPCODE_VFS_GETATTR  = 2
+OPCODE_VFS_OPEN        = 1
+OPCODE_VFS_GETATTR     = 2
+OPCODE_VFS_UNLINK      = 3
 ## OPCODE_VFS_STATX    = 3
-FUNCNAMES = { OPCODE_NFSD_OPEN    : "nfsd_open"
-            , OPCODE_VFS_GETATTR : "vfs_getattr"
+
+FUNCNAMES = { OPCODE_VFS_OPEN       : "vfs_open"
+            , OPCODE_VFS_GETATTR    : "vfs_getattr"
+            , OPCODE_VFS_UNLINK     : "vfs_unlink"
             ## , OPCODE_VFS_STATX   : "vfs_statx"
             }
 
@@ -344,6 +348,9 @@ if options.trace_getattr:
     ## b.attach_kretprobe(event="nfsd_dispatch", fn_name="probe_nfsd_dispatch_exit")
     ## b.attach_kprobe(event="nfsd_dispatch", fn_name="probe_nfsd_dispatch_enter")
     b.attach_kprobe(event="vfs_getattr", fn_name="probe_vfs_getattr")
+
+if options.trace_unlink:
+    b.attach_kprobe(event="vfs_unlink", fn_name="probe_vfs_unlink")
 
 
 print("%-28s %-6s %-6s %-12s %s" % ("TIME", "COMM", "PID", "FUNC", "MESSAGE"))
